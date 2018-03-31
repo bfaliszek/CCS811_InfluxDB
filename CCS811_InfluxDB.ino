@@ -16,8 +16,8 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 
-#include "CCS811.h"
-#include "ESPinfluxdb.h"
+#include "src/CCS811.h"
+#include "src/ESPinfluxdb.h"
 
 
 
