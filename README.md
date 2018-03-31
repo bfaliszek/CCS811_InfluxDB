@@ -1,4 +1,4 @@
-# CCS811_InfluxDB
+# CCS811 InfluxDB
 Sending measurement data from CCS811(ex. CJMCU-811 CCS811) connected to ESP8266(Wemos D1, NodeMCU etc.) to your InfluxDB database.
 
 ESP.DeepSleep support.
