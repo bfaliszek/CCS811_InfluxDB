@@ -44,10 +44,9 @@ float temperature = 22.56;
 float humidity = 40.73;
 
 // Turn ON/OFF DeepSleep Mode
-#define DeepSleep_ON  true
+#define DeepSleep_ON  false
 
 // ******************** Config End ********************
-
 
 
 #define WAKE_PIN  14
@@ -106,10 +105,12 @@ void configure_ccs811() {
 void loop()
 { 
   sensor.compensate(temperature, humidity);  
-  sensor.getData(ADDR, WAKE_PIN);
+  //sensor.getData(ADDR, WAKE_PIN);
+  sensor.getData();
   float co2 = sensor.readCO2();
   float tvoc = sensor.readTVOC();
-  if (co2 >= 65021) {
+  //if (co2 >= 65021) {
+  if (co2 >= 64000) {
     configure_ccs811();
     co2 = 400;
     tvoc = 0;

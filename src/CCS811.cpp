@@ -33,14 +33,13 @@ boolean CCS811::begin(uint8_t I2C_ADDR, uint8_t WAKE_PIN)
   _I2C_ADDR = I2C_ADDR;
   _WAKE_PIN = WAKE_PIN;
   Wire.begin();
-  //delay(1000);
   pinMode(_WAKE_PIN, OUTPUT);   // set WAKE pin as OUTPUT
   digitalWrite(_WAKE_PIN, LOW);  // WAKE_PIN on the sensor is active low, must always be asserted before any communication and held low throughout
 
   byte hw_id = readHW_ID();
   if(hw_id != 0x81)  // this is the expected hardware ID
   {
-    Serial.println("Error: Incorrect Hardware ID detected " + String(hw_id));
+    Serial.println("Error: Incorrect Hardware ID detected.");
     return false;
   }
 
@@ -54,7 +53,7 @@ boolean CCS811::begin(uint8_t I2C_ADDR, uint8_t WAKE_PIN)
   }
 
   _digitalWrite(_WAKE_PIN, LOW);
-  delayMicroseconds(80); // recommended 50us delay after asserting WAKE pin
+  delayMicroseconds(50); // recommended 50us delay after asserting WAKE pin
   Wire.beginTransmission(_I2C_ADDR); // least significant bit indicates write (0) or read (1)
   Wire.write(APP_START);
   Wire.endTransmission();
@@ -152,12 +151,8 @@ void CCS811::sleep()
 }
 
 
-void CCS811::getData(uint8_t I2C_ADDR, uint8_t WAKE_PIN)
+void CCS811::getData(void)
 {
-  _I2C_ADDR = I2C_ADDR;
-  _WAKE_PIN = WAKE_PIN;
-  Wire.begin();
-  pinMode(_WAKE_PIN, OUTPUT);
   //CCS811::compensate(t, rh);
   _digitalWrite(_WAKE_PIN, LOW);
   delayMicroseconds(50); // recommended 50us delay after asserting WAKE pin
@@ -168,7 +163,6 @@ void CCS811::getData(uint8_t I2C_ADDR, uint8_t WAKE_PIN)
   Wire.endTransmission();
 
   Wire.requestFrom(_I2C_ADDR, (uint8_t)4);
-  delay(1);
   int buffer[4];
   if(Wire.available() == 4)
   {
@@ -231,7 +225,6 @@ void CCS811::_digitalWrite(uint8_t WAKE_PIN, bool VAL)    // asserts WAKE pin wi
 {
   digitalWrite(WAKE_PIN, VAL);
   delayMicroseconds(60);
-  //delayMicroseconds(100);
 }
 
 // bruh

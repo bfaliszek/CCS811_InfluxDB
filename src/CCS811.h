@@ -56,7 +56,7 @@ class CCS811
     byte readErrorID(byte _status);
     int readTVOC(void);
     int readCO2(void);
-    void getData(uint8_t I2C_ADDR, uint8_t WAKE_PIN);
+    void getData(void);
     void compensate(float t, float rh);
     void _digitalWrite(uint8_t WAKE_PIN, bool VAL);
     void reset(void);
