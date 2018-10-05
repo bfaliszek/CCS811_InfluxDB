@@ -5,26 +5,27 @@
   Wemos D1 mini or NodeMCU 1.0
   VCC - 3.3V
   GND - G
-  SCL - D1
-  SDA - D2
-  WAK - D5
-  INT - D6
-  DeepSleep: D0 - RTS
+  SCL - D1 -- GPIO 5
+  SDA - D2 -- GPIO 4
+  WAK - D3 -- GPIO 0
+  
+  DeepSleep: RTS(esp8266) - D0(esp8266)
   
  ****************************************************/
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
+#include <Wire.h>
 
-#include "src/CCS811.h"
+#include "src/ccs811.h" // https://github.com/maarten-pennings/CCS811
 #include "src/ESPinfluxdb.h"
-
-
 
 // ********************** Config **********************
 
-// Send data every 60 seconds
+// DeepSleep time – send data every 60 seconds
 const int sleepTimeS = 60;
+
+CCS811 ccs811(0); // WAKE to D3
 
 // InfluxDB – Config
 #define INFLUXDB_HOST "INFLUXDB_ADRESS"
@@ -39,19 +40,30 @@ const int sleepTimeS = 60;
 #define WiFi_SSID "WiFi_SSID"
 #define WiFi_Password "WiFi_Password" 
 
-// replace temperature and humidity with values from external sensor - ex. BME280, DHT22
-float temperature = 22.56;
-float humidity = 40.73;
-
 // Turn ON/OFF DeepSleep Mode
 #define DeepSleep_ON  false
 
 // ******************** Config End ********************
 
+void print_versions() {
+  uint8_t hw_version;
+  uint16_t fw_boot_version;
+  uint16_t fw_app_version;
+  bool ok= ccs811.versions(&hw_version, &fw_boot_version, &fw_app_version);
+  if( ok ) {
+    Serial.print("init: CCS811 versions: "); 
+    Serial.print("hw 0x"); Serial.print(hw_version,HEX);
+    Serial.print(", fw_boot 0x"); Serial.print(fw_boot_version,HEX); 
+    Serial.print(", fw_app 0x"); Serial.print(fw_app_version,HEX);
+    Serial.println("");
+  } else {
+    Serial.println("init: CCS811 versions FAILED");
+  }
+}
 
-#define WAKE_PIN  14
+#define WAKE_ESP8266_PIN  14
+int firstRead = 0;
 
-CCS811 sensor;
 ESP8266WiFiMulti WiFiMulti;
 
 Influxdb influxdb(INFLUXDB_HOST, INFLUXDB_PORT);
@@ -60,6 +72,7 @@ void setup()
 {
   Serial.begin(115200);
   delay(10);
+  Serial.println("");
   
   WiFi.mode(WIFI_STA);
   WiFiMulti.addAP(WiFi_SSID, WiFi_Password);
@@ -74,59 +87,63 @@ void setup()
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-    
-  Serial.println("CCS811 test");
-  configure_ccs811();
+
+  // Enable I2C for ESP8266 NodeMCU boards [VDD to 3V3, GND to GND, nWAKE to D3, SDA to D2, SCL to D1]
+  Wire.begin(4,5); 
   
+  Serial.println("CCS811 test");
+  // Enable CCS811
+  bool ok= ccs811.begin();
+  if( !ok ) Serial.println("init: CCS811 begin FAILED");
+  print_versions();
+  
+  // Start measuring
+  ok= ccs811.start(CCS811_MODE_1SEC);
+  if( !ok ) Serial.println("init: CCS811 start FAILED");
+
   if (influxdb.opendb(DATABASE)!=DB_SUCCESS) {
         Serial.println("Connecting to database failed");
       } 
 }
 
-void configure_ccs811() {
-  int count = 0;
-  while (count < 100) {
-    count++;
-    if (!sensor.begin(uint8_t(ADDR), uint8_t(WAKE_PIN))) {
-      Serial.println("Initialization failed");
-      delay(100);
-    } else {
-      Serial.println("Success in " + String(count));
-      break;
-    }
-    if (count == 99) {
-      ESP.reset(); //reset and try again
-      delay(5000);
-    }
-    delay(100);
-  }
-}
-
 void loop()
 { 
-  sensor.compensate(temperature, humidity);  
-  //sensor.getData(ADDR, WAKE_PIN);
-  sensor.getData();
-  float co2 = sensor.readCO2();
-  float tvoc = sensor.readTVOC();
-  //if (co2 >= 65021) {
-  if (co2 >= 64000) {
-    configure_ccs811();
-    co2 = 400;
-    tvoc = 0;
-  } else if (co2 < 1) {
-    co2 = 400;
-    tvoc = 0;
+  if (firstRead == 0){ // first reading always returns "65021"
+  // Read
+  uint16_t eco2;
+  uint16_t etvoc;
+  uint16_t errstat;
+  uint16_t raw;
+  
+  ccs811.read(&eco2,&etvoc,&errstat,&raw);
+  // Check if errstat flags denote VALID&NEW or OLD|ERROR
+  bool valid_and_new = ( (errstat&CCS811_ERRSTAT_OKS) == CCS811_ERRSTAT_OKS )  &&  ( (errstat&CCS811_ERRSTAT_ERRORS)==0 );
+  firstRead++;
+  delay(10000); // after first read, give sensor some time, to heat up
   }
   
-  Serial.print("eCO2 concentration : "); Serial.print(co2); Serial.println(" ppm");
-  Serial.print("TVOC concentration : "); Serial.print(tvoc); Serial.println(" ppb");
+  // Read
+  uint16_t eco2;
+  uint16_t etvoc;
+  uint16_t errstat;
+  uint16_t raw;
+  
+  ccs811.read(&eco2,&etvoc,&errstat,&raw);
+  bool valid_and_new = ( (errstat&CCS811_ERRSTAT_OKS) == CCS811_ERRSTAT_OKS )  &&  ( (errstat&CCS811_ERRSTAT_ERRORS)==0 );
+
+  Serial.print("\n\neCO2 concentration: "); 
+  Serial.print(eco2); 
+  Serial.print(" ppm");
+  
+  Serial.print("\nTVOC concentration: "); 
+  Serial.print(etvoc); 
+  Serial.print(" ppb");
 
   dbMeasurement row(DEVICE_NAME);
-  row.addField("eCO2", (int(co2)));
-  row.addField("TVOC", (int(tvoc)));
+  row.addField("eCO2", (int(eco2)));
+  row.addField("TVOC", (int(etvoc)));
   if(influxdb.write(row) == DB_SUCCESS){
-    Serial.println("Data send to InfluxDB");
+    Serial.println("\n\nData send to InfluxDB");
   }
   row.empty();
   Serial.println();
@@ -135,6 +152,7 @@ void loop()
 
   if (DeepSleep_ON == true) {
     Serial.println("ESP8266 in sleep mode");
+    firstRead = 0;
     Serial.println("Back in 60 seconds...");
     ESP.deepSleep(sleepTimeS * 1000000);
   }else{
