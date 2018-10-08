@@ -11,6 +11,6 @@ Based on [CCS811 library](https://github.com/maarten-pennings/CCS811) and [ESP82
  * SDA - D2
  * WAK - D3
  
- For ESP8266 DeepSleep support – connect **RTS** pin to **D0**, and change "#define DeepSleep_ON  false" to "#define DeepSleep_ON  true".
+ For ESP8266 DeepSleep support – connect **RTS** pin to **D0**, and change `#define DeepSleep_ON  false` to `#define DeepSleep_ON  true`.
 
 ![CJMCU-811 CCS811](https://raw.githubusercontent.com/bfaliszek/CCS811_InfluxDB/master/CJMCU-811_CCS811.jpg)
