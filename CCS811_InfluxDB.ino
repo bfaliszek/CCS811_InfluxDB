@@ -106,9 +106,8 @@ void setup()
       } 
 }
 
-void loop()
-{ 
-  if (firstRead == 0){ // first reading always returns "65021"
+void check_results()
+{
   // Read
   uint16_t eco2;
   uint16_t etvoc;
@@ -121,6 +120,12 @@ void loop()
   firstRead++;
   delay(10000); // after first read, give sensor some time, to heat up
   }
+
+void loop()
+{ 
+  if (firstRead == 0){ // first reading always returns >65000
+    check_results();
+  }
   
   // Read
   uint16_t eco2;
@@ -130,6 +135,10 @@ void loop()
   
   ccs811.read(&eco2,&etvoc,&errstat,&raw);
   bool valid_and_new = ( (errstat&CCS811_ERRSTAT_OKS) == CCS811_ERRSTAT_OKS )  &&  ( (errstat&CCS811_ERRSTAT_ERRORS)==0 );
+
+  if (eco2 >= 65000 or etvoc >=32000) {
+    check_results();
+  }
 
   Serial.print("\n\neCO2 concentration: "); 
   Serial.print(eco2); 
