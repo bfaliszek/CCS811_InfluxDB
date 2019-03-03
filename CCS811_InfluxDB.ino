@@ -88,7 +88,9 @@ void setup()
   ok = ccs811.start(CCS811_MODE_1SEC);
   if ( !ok ) Serial.println("init: CCS811 start FAILED");
 
-  if (influxdb.opendb(DATABASE) != DB_SUCCESS) {
+
+
+  if (influxdb.opendb(DATABASE, DB_USER, DB_PASSWORD) != DB_SUCCESS) {
     Serial.println("Connecting to database failed");
   }
 }
@@ -96,6 +98,7 @@ void setup()
 void loop()
 {
   uint16_t eco2, etvoc, errstat, raw;
+
   ccs811.read(&eco2, &etvoc, &errstat, &raw);
   if ( errstat == CCS811_ERRSTAT_OK ) {
 
